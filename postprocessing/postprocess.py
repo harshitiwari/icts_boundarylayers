@@ -225,49 +225,83 @@ def plot_hodographs(exp_dir, exp_name):
 
 
 def plot_term_profiles(exp_dir, exp_name):
-    """Plot magnitudes of the main momentum terms vs latitude at three heights."""
+    """Plot signed components of momentum terms vs latitude at three heights.
+    
+    Shows u and v components separately for advection, diffusion, Coriolis, and pressure terms.
+    Signed values reveal direction and magnitude of each force contribution.
+    """
+    
     data = load_snapshot(exp_dir, snapshot_num=-1, format_type=FIELD_SAVE_FORMAT)
     u = data['u']
     v = data['v']
     z = data['z']
     y = data['y']
-
+    
     if exp_name == EXPERIMENT_1['name']:
         dpdx = EXPERIMENT_1['dpdx']
         dpdy = EXPERIMENT_1['dpdy']
     else:
         dpdx = EXPERIMENT_2['dpdx']
         dpdy = EXPERIMENT_2['dpdy']
-
-    terms = _compute_terms_from_snapshot(u, v, z, y, beta=2.28e-11, k_eddy=5.0, dpdx=dpdx, dpdy=dpdy)
-
-    adv_mag = np.sqrt(terms['adv_u']**2 + terms['adv_v']**2)
-    diff_mag = np.sqrt(terms['diff_u']**2 + terms['diff_v']**2)
-    cor_mag = np.sqrt(terms['cor_u']**2 + terms['cor_v']**2)
-    press_mag = np.sqrt(terms['press_u']**2 + terms['press_v']**2)
-
-    nz = u.shape[0]
-    idxs = [0, nz//2, nz-1]
-    names = ['surface', 'mid', 'top']
-
-    fig, axes = plt.subplots(1, 3, figsize=(18, 4), sharey=True)
-    for ax, iz, nm in zip(axes, idxs, names):
-        ax.plot(y, press_mag[iz, :], label='Pressure', color='k', linewidth=2)
-        ax.plot(y, adv_mag[iz, :], label='Advection', color='C0')
-        ax.plot(y, diff_mag[iz, :], label='Diffusion', color='C1', linestyle='--')
-        ax.plot(y, cor_mag[iz, :], label='Coriolis', color='C2', linestyle='-.')
-        ax.set_title(f'{nm} (z={z[iz]:.0f} m)')
-        ax.set_xlabel('Latitude (deg)')
-        ax.grid(alpha=0.3)
-        if ax is axes[0]:
-            ax.set_ylabel('Term magnitude (m s$^{-2}$)')
+    
+    terms = _compute_terms_from_snapshot(u, v, z, y, beta=2.28e-11, k_eddy=5.0, 
+                                         dpdx=dpdx, dpdy=dpdy)
+    
+    # Select 3 representative heights
+    z_indices = [0, len(z)//2, -1]  # surface, mid, top
+    z_labels = [f'{z[i]:.0f}m' for i in z_indices]
+    
+    # Create figure with 4 rows (one per term: adv, diff, cor, press) and 2 cols (u and v)
+    fig, axes = plt.subplots(4, 2, figsize=(14, 12))
+    fig.suptitle(f'{exp_name}: Signed Force Components vs Latitude\n(Positive = acceleration in that direction)', 
+                 fontsize=14, fontweight='bold', y=0.995)
+    
+    term_names = ['Advection', 'Diffusion', 'Coriolis', 'Pressure']
+    term_keys = [('adv_u', 'adv_v'), ('diff_u', 'diff_v'), ('cor_u', 'cor_v'), ('press_u', 'press_v')]
+    
+    colors = ['blue', 'green', 'red']  # for z_indices
+    
+    for row, (term_name, (key_u, key_v)) in enumerate(zip(term_names, term_keys)):
+        # Column 0: u component
+        ax = axes[row, 0]
+        for z_idx, color, z_label in zip(z_indices, colors, z_labels):
+            u_term = terms[key_u][z_idx, :]
+            ax.plot(y, u_term, color=color, linewidth=2.0, marker='o', 
+                   markersize=4, label=z_label, alpha=0.8)
+        ax.axhline(0, color='k', linestyle='--', linewidth=0.8, alpha=0.5)
+        ax.set_ylabel(f'{term_name}\nu-component (m/s²)', fontsize=10, fontweight='bold')
+        ax.grid(True, alpha=0.3)
         ax.legend(fontsize=9)
-
-    plt.suptitle(f'{exp_name}: Term magnitudes vs Latitude')
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        if row == 0:
+            ax.set_title('Zonal (u) Component', fontsize=11, fontweight='bold')
+        
+        # Column 1: v component
+        ax = axes[row, 1]
+        for z_idx, color, z_label in zip(z_indices, colors, z_labels):
+            v_term = terms[key_v][z_idx, :]
+            ax.plot(y, v_term, color=color, linewidth=2.0, marker='s', 
+                   markersize=4, label=z_label, alpha=0.8)
+        ax.axhline(0, color='k', linestyle='--', linewidth=0.8, alpha=0.5)
+        ax.set_ylabel(f'{term_name}\nv-component (m/s²)', fontsize=10, fontweight='bold')
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=9)
+        if row == 0:
+            ax.set_title('Meridional (v) Component', fontsize=11, fontweight='bold')
+    
+    # x-label on bottom row
+    for ax in axes[-1, :]:
+        ax.set_xlabel('Latitude (degrees)', fontsize=11, fontweight='bold')
+    
+    # Mark equator
+    for ax in axes.flat:
+        if np.min(y) < 0.0 < np.max(y):
+            ax.axvline(0.0, color='gray', linestyle=':', linewidth=1.0, alpha=0.6)
+    
+    plt.tight_layout()
     out = Path(exp_dir) / 'plots' / 'terms_vs_latitude.png'
     plt.savefig(out, dpi=FIGURE_DPI, bbox_inches='tight')
     plt.close()
+    
     print(f"  ✓ Saved: {out.name}")
     return str(out)
 
@@ -314,6 +348,7 @@ def plot_vertical_profiles(exp_dir, exp_name):
     data = load_snapshot(exp_dir, snapshot_num=-1, format_type=FIELD_SAVE_FORMAT)
     u = data['u']
     v = data['v']
+    w = data['w']
     z = data['z']
     y = data['y']
     
@@ -348,7 +383,7 @@ def plot_vertical_profiles(exp_dir, exp_name):
     ax = axes[1, 0]
     speed = np.sqrt(u**2 + v**2)
     for idx, color, label in zip(lat_indices, colors, labels):
-        ax.plot(speed[:, idx], z, marker='^', linewidth=2.5, color=color, label=label, markersize=4)
+        ax.plot(w[:, idx], z, marker='^', linewidth=2.5, color=color, label=label, markersize=4)
     ax.set_xlabel('Wind Speed (m/s)', fontsize=11, fontweight='bold')
     ax.set_ylabel('Height (m)', fontsize=11, fontweight='bold')
     ax.set_title('Vertical Profile: Total Wind Speed', fontsize=12, fontweight='bold')
