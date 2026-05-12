@@ -1,0 +1,29 @@
+{
+  "experiment": "Experiment_1_meridional_PG_only",
+  "description": "Meridional pressure gradient only",
+  "parameters": {
+    "dpdy": -4e-05,
+    "dpdx": 0.0,
+    "beta": 2.28e-11,
+    "K_eddy": 5.0,
+    "dz": 210.52631578947367,
+    "dy": 55500.0
+  },
+  "grid": {
+    "nz": 20,
+    "ny": 41,
+    "z_max": 4000.0,
+    "y_min": -8.0,
+    "y_max": 12.0
+  },
+  "integration": {
+    "dt": 500.0,
+    "total_steps": 2686,
+    "total_days": 16.0,
+    "snapshots_saved": 17,
+    "final_time_seconds": 1343000.0
+  },
+  "timing": {
+    "elapsed_seconds": 0.29757189750671387
+  }
+}
